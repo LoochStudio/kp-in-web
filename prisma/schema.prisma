@@ -1,0 +1,68 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String     @id @default(cuid())
+  email     String     @unique
+  password  String
+  name      String
+  proposals Proposal[]
+  createdAt DateTime   @default(now())
+}
+
+model Proposal {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  status    Status   @default(DRAFT)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  clientName String
+  title      String
+
+  // BlockNote JSON для каждой секции
+  taskContent     String? // 1. Задача проекта
+  stagesContent   String? // 2. Этапы проекта
+  timelineContent String? // 3. Сроки
+  processContent  String? // 4. Как будем работать
+  ratesContent    String? // 5. Ставки специалистов
+  pricingContent  String? // 6. Стоимость работ
+  casesContent    String? // 7. Кейсы
+  nextContent     String? // 8. Что дальше
+
+  contactName  String?
+  contactRole  String?
+  contactEmail String?
+  contactPhone String?
+
+  // Видимость секций
+  showTask     Boolean @default(true)
+  showStages   Boolean @default(true)
+  showTimeline Boolean @default(true)
+  showProcess  Boolean @default(true)
+  showRates    Boolean @default(true)
+  showPricing  Boolean @default(true)
+  showCases    Boolean @default(false)
+  showNext     Boolean @default(true)
+
+  manager   User   @relation(fields: [managerId], references: [id])
+  managerId String
+}
+
+enum Status {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+}
