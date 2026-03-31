@@ -23,7 +23,7 @@ function parseContent(value: string): PartialBlock[] {
   } catch {
     // Старые данные — plain text, оборачиваем в paragraph
     if (value.trim()) {
-      return [{ type: "paragraph", content: [{ type: "text", text: value }] }];
+      return [{ type: "paragraph", content: [{ type: "text", text: value, styles: {} }] }];
     }
     return EMPTY;
   }
