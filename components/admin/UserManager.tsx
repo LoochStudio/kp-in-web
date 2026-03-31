@@ -1,0 +1,145 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  createdAt: string;
+  _count: { proposals: number };
+}
+
+interface Props {
+  users: User[];
+  currentUserId: string;
+}
+
+export default function UserManager({ users: initial, currentUserId }: Props) {
+  const router = useRouter();
+  const [users, setUsers] = useState(initial);
+  const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const [error, setError] = useState("");
+  const [pending, setPending] = useState(false);
+
+  async function handleCreate(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setPending(true);
+    try {
+      const res = await fetch("/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error); return; }
+      setUsers((prev) => [...prev, { ...data, _count: { proposals: 0 } }]);
+      setForm({ name: "", email: "", password: "" });
+      router.refresh();
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm("Удалить пользователя?")) return;
+    const res = await fetch(`/api/users?id=${id}`, { method: "DELETE" });
+    if (res.ok) {
+      setUsers((prev) => prev.filter((u) => u.id !== id));
+      router.refresh();
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Список */}
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm overflow-hidden">
+        {users.length === 0 ? (
+          <p className="text-sm text-zinc-400 text-center py-10">Нет пользователей</p>
+        ) : (
+          users.map((u, i) => (
+            <div
+              key={u.id}
+              className={`flex items-center gap-4 px-6 py-4 ${i !== users.length - 1 ? "border-b border-zinc-50 dark:border-zinc-800" : ""}`}
+            >
+              <div
+                className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs font-semibold"
+                style={{ background: "#2A1E16", color: "#C4A898" }}
+              >
+                {u.name.charAt(0).toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                  {u.name}
+                  {u.id === currentUserId && (
+                    <span className="ml-2 text-[10px] text-zinc-400">(вы)</span>
+                  )}
+                </p>
+                <p className="text-xs text-zinc-400">{u.email}</p>
+              </div>
+              <span className="text-xs text-zinc-300 dark:text-zinc-600 shrink-0">
+                {u._count.proposals} КП
+              </span>
+              <span className="text-xs text-zinc-300 dark:text-zinc-600 shrink-0 tabular-nums">
+                {new Date(u.createdAt).toLocaleDateString("ru-RU")}
+              </span>
+              {u.id !== currentUserId && (
+                <button
+                  onClick={() => handleDelete(u.id)}
+                  className="text-xs text-zinc-300 hover:text-red-400 dark:text-zinc-600 dark:hover:text-red-400 transition-colors duration-300 shrink-0"
+                >
+                  Удалить
+                </button>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Форма создания */}
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm p-6">
+        <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-5">Добавить менеджера</h2>
+        <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <input
+            type="text"
+            placeholder="Имя"
+            value={form.name}
+            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+            required
+            className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-transparent px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-zinc-400 dark:focus:border-zinc-500 transition-colors"
+          />
+          <input
+            type="email"
+            placeholder="Email"
+            value={form.email}
+            onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+            required
+            className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-transparent px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-zinc-400 dark:focus:border-zinc-500 transition-colors"
+          />
+          <input
+            type="password"
+            placeholder="Пароль"
+            value={form.password}
+            onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+            required
+            className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-transparent px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-zinc-400 dark:focus:border-zinc-500 transition-colors"
+          />
+          {error && (
+            <p className="md:col-span-3 text-xs text-red-500">{error}</p>
+          )}
+          <div className="md:col-span-3 flex justify-end">
+            <button
+              type="submit"
+              disabled={pending}
+              className="text-sm px-4 py-2 rounded-lg font-medium transition-colors duration-300 bg-[#333037] hover:bg-[#1C1917] text-[#FDFAF8] disabled:opacity-40"
+            >
+              {pending ? "Создание..." : "Создать"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}

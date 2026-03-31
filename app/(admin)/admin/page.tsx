@@ -24,14 +24,23 @@ export default async function AdminPage() {
       {/* Header */}
       <header className="bg-white dark:bg-zinc-900 border-b border-zinc-100 dark:border-zinc-800 px-6 py-4">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div
-              className="w-7 h-7 rounded-lg flex items-center justify-center"
-              style={{ background: "linear-gradient(135deg, #2A1E16 0%, #1A140F 100%)" }}
-            >
-              <span className="text-[10px] font-semibold" style={{ color: "#C4A898" }}>КП</span>
+          <div className="flex items-center gap-5">
+            <div className="flex items-center gap-3">
+              <div
+                className="w-7 h-7 rounded-lg flex items-center justify-center"
+                style={{ background: "linear-gradient(135deg, #2A1E16 0%, #1A140F 100%)" }}
+              >
+                <span className="text-[10px] font-semibold" style={{ color: "#C4A898" }}>КП</span>
+              </div>
             </div>
-            <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Предложения</span>
+            <nav className="flex items-center gap-4">
+              <Link href="/admin" className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                Предложения
+              </Link>
+              <Link href="/admin/users" className="text-sm text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors duration-300">
+                Менеджеры
+              </Link>
+            </nav>
           </div>
           <div className="flex items-center gap-4">
             <ThemeToggle />
