@@ -1,12 +1,66 @@
 @import "tailwindcss";
 
-/* Включаем class-based dark mode для Tailwind v4 */
 @variant dark (&:where(.dark, .dark *));
+
+/* ── Шрифт ─────────────────────────────────────────────── */
+body {
+  font-family: var(--font-ibm, "IBM Plex Sans"), sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "pnum" on, "lnum" on;
+}
 
 html {
   scroll-behavior: smooth;
 }
 
-body {
-  font-family: Arial, Helvetica, sans-serif;
+/* ── Hero-анимации (CSS only, без JS) ───────────────────── */
+@keyframes reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes reveal-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.hero-reveal {
+  opacity: 0;
+  animation: reveal-up 0.85s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.hero-reveal-1 { animation-delay: 0.05s; }
+.hero-reveal-2 { animation-delay: 0.18s; }
+.hero-reveal-3 { animation-delay: 0.32s; }
+.hero-reveal-4 { animation-delay: 0.48s; }
+.hero-reveal-5 { animation-delay: 0.66s; }
+
+.hero-reveal-fade {
+  opacity: 0;
+  animation: reveal-fade 1s ease forwards;
+}
+.hero-reveal-fade-1 { animation-delay: 0.7s; }
+
+/* ── Переход секций ─────────────────────────────────────── */
+@keyframes section-enter {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Тонкий пульс для кнопок ─────────────────────────────── */
+@keyframes soft-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.6; }
 }

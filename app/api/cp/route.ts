@@ -76,7 +76,8 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json(proposal, { status: 201 });
-  } catch {
+  } catch (e) {
+    console.error("[POST /api/cp]", e);
     return NextResponse.json({ error: "Ошибка при создании КП" }, { status: 500 });
   }
 }

@@ -33,7 +33,13 @@ interface Block {
 function InlineNode({ node }: { node: InlineContent }) {
   if (node.type === "link") {
     return (
-      <a href={node.href} className="text-zinc-900 dark:text-zinc-100 underline underline-offset-2 hover:text-zinc-600 dark:hover:text-zinc-400" target="_blank" rel="noopener noreferrer">
+      <a
+        href={node.href}
+        className="underline underline-offset-2 transition-colors duration-300"
+        style={{ color: "#333037" }}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
         {node.content.map((n, i) => <InlineNode key={i} node={n} />)}
       </a>
     );
@@ -41,11 +47,23 @@ function InlineNode({ node }: { node: InlineContent }) {
 
   let content: React.ReactNode = node.text;
 
-  if (node.styles?.code) content = <code className="bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 px-1 py-0.5 rounded text-[0.875em] font-mono">{content}</code>;
-  if (node.styles?.bold) content = <strong className="font-semibold text-zinc-900 dark:text-zinc-100">{content}</strong>;
-  if (node.styles?.italic) content = <em>{content}</em>;
-  if (node.styles?.underline) content = <u>{content}</u>;
-  if (node.styles?.strike) content = <s className="text-zinc-400 dark:text-zinc-500">{content}</s>;
+  if (node.styles?.code)
+    content = (
+      <code
+        className="px-1.5 py-0.5 rounded text-[0.875em] font-mono"
+        style={{ background: "#F0EDE8", color: "#4A3F38" }}
+      >
+        {content}
+      </code>
+    );
+  if (node.styles?.bold)
+    content = <strong className="font-semibold" style={{ color: "#2E2B28" }}>{content}</strong>;
+  if (node.styles?.italic)
+    content = <em>{content}</em>;
+  if (node.styles?.underline)
+    content = <u>{content}</u>;
+  if (node.styles?.strike)
+    content = <s style={{ color: "#B0A89E" }}>{content}</s>;
 
   return <>{content}</>;
 }
@@ -59,25 +77,39 @@ function BlockNode({ block }: { block: Block }) {
   switch (block.type) {
     case "heading": {
       const level = (block.props?.level as number) ?? 1;
-      const cls = level === 1
-        ? "text-xl font-bold text-zinc-900 dark:text-zinc-100 mt-6 mb-2"
-        : level === 2
-        ? "text-lg font-semibold text-zinc-900 dark:text-zinc-100 mt-5 mb-2"
-        : "text-base font-semibold text-zinc-800 dark:text-zinc-200 mt-4 mb-1";
-      return <p className={cls}><Inline content={block.content} /></p>;
+      if (level === 1)
+        return (
+          <p className="text-xl font-semibold mt-8 mb-3 tracking-tight" style={{ color: "#2E2B28" }}>
+            <Inline content={block.content} />
+          </p>
+        );
+      if (level === 2)
+        return (
+          <p className="text-lg font-semibold mt-6 mb-2" style={{ color: "#2E2B28" }}>
+            <Inline content={block.content} />
+          </p>
+        );
+      return (
+        <p className="text-base font-semibold mt-5 mb-1.5" style={{ color: "#3A3735" }}>
+          <Inline content={block.content} />
+        </p>
+      );
     }
 
     case "bulletListItem":
       return (
-        <li className="flex items-start gap-2 text-zinc-600 dark:text-zinc-400">
-          <span className="mt-2 w-1.5 h-1.5 rounded-full bg-zinc-400 dark:bg-zinc-500 shrink-0" />
-          <span><Inline content={block.content} /></span>
+        <li className="flex items-start gap-3" style={{ color: "#5C5550" }}>
+          <span
+            className="mt-[0.55em] w-1.5 h-1.5 rounded-full shrink-0"
+            style={{ background: "#C4BCB6" }}
+          />
+          <span className="leading-relaxed"><Inline content={block.content} /></span>
         </li>
       );
 
     case "numberedListItem":
       return (
-        <li className="text-zinc-600 dark:text-zinc-400 list-decimal ml-4">
+        <li className="leading-relaxed ml-4 list-decimal" style={{ color: "#5C5550" }}>
           <Inline content={block.content} />
         </li>
       );
@@ -87,9 +119,13 @@ function BlockNode({ block }: { block: Block }) {
       const caption = block.props?.caption as string;
       if (!url) return null;
       return (
-        <figure className="my-4">
-          <img src={url} alt={caption ?? ""} className="rounded-xl w-full object-cover" />
-          {caption && <figcaption className="text-sm text-zinc-400 dark:text-zinc-500 text-center mt-2">{caption}</figcaption>}
+        <figure className="my-6">
+          <img src={url} alt={caption ?? ""} className="rounded-2xl w-full object-cover" />
+          {caption && (
+            <figcaption className="text-sm text-center mt-3" style={{ color: "#B0A89E" }}>
+              {caption}
+            </figcaption>
+          )}
         </figure>
       );
     }
@@ -101,23 +137,35 @@ function BlockNode({ block }: { block: Block }) {
       } | undefined;
       if (!content?.rows?.length) return null;
 
-      // BlockNote хранит ячейку как объект { type, content } или как массив
       function getCellContent(cell: unknown): InlineContent[] {
         if (Array.isArray(cell)) return cell as InlineContent[];
-        if (cell && typeof cell === "object" && "content" in cell) {
+        if (cell && typeof cell === "object" && "content" in cell)
           return (cell as { content: InlineContent[] }).content ?? [];
-        }
         return [];
       }
 
       return (
-        <div className="overflow-x-auto my-2">
+        <div className="overflow-x-auto my-4 rounded-xl" style={{ border: "1px solid #EDE8E2" }}>
           <table className="w-full border-collapse text-sm">
             <tbody>
               {content.rows.map((row, ri) => (
-                <tr key={ri} className={ri === 0 ? "bg-zinc-50 dark:bg-zinc-800/50 font-medium" : "border-t border-zinc-100 dark:border-zinc-800"}>
+                <tr
+                  key={ri}
+                  style={
+                    ri === 0
+                      ? { background: "#FAF7F4" }
+                      : { borderTop: "1px solid #EDE8E2" }
+                  }
+                >
                   {row.cells.map((cell, ci) => (
-                    <td key={ci} className="px-4 py-2.5 text-zinc-700 dark:text-zinc-300 border border-zinc-100 dark:border-zinc-800">
+                    <td
+                      key={ci}
+                      className={`px-4 py-3 ${ri === 0 ? "font-medium" : ""}`}
+                      style={{
+                        color: ri === 0 ? "#2E2B28" : "#5C5550",
+                        borderRight: ci < row.cells.length - 1 ? "1px solid #EDE8E2" : "none",
+                      }}
+                    >
                       {getCellContent(cell).map((node, i) => <InlineNode key={i} node={node} />)}
                     </td>
                   ))}
@@ -132,9 +180,9 @@ function BlockNode({ block }: { block: Block }) {
     case "paragraph":
     default: {
       const content = block.content;
-      if (!content?.length) return <div className="h-3" />;
+      if (!content?.length) return <div className="h-2" />;
       return (
-        <p className="text-zinc-600 dark:text-zinc-400 leading-relaxed">
+        <p className="leading-[1.75]" style={{ color: "#5C5550" }}>
           <Inline content={content} />
         </p>
       );
@@ -152,22 +200,20 @@ function groupListItems(blocks: Block[]): React.ReactNode[] {
     if (block.type === "bulletListItem") {
       const items: Block[] = [];
       while (i < blocks.length && blocks[i].type === "bulletListItem") {
-        items.push(blocks[i]);
-        i++;
+        items.push(blocks[i++]);
       }
       result.push(
-        <ul key={i} className="space-y-1.5 my-2">
+        <ul key={`ul-${i}`} className="space-y-2 my-3">
           {items.map((b) => <BlockNode key={b.id} block={b} />)}
         </ul>
       );
     } else if (block.type === "numberedListItem") {
       const items: Block[] = [];
       while (i < blocks.length && blocks[i].type === "numberedListItem") {
-        items.push(blocks[i]);
-        i++;
+        items.push(blocks[i++]);
       }
       result.push(
-        <ol key={i} className="space-y-1.5 my-2">
+        <ol key={`ol-${i}`} className="space-y-2 my-3">
           {items.map((b) => <BlockNode key={b.id} block={b} />)}
         </ol>
       );
@@ -194,12 +240,10 @@ export default function BlockContent({ content }: Props) {
     if (Array.isArray(parsed)) {
       blocks = parsed;
     } else {
-      // Не JSON — рендерим как обычный текст
-      return <p className="text-zinc-600 dark:text-zinc-400 leading-relaxed">{content}</p>;
+      return <p className="leading-[1.75]" style={{ color: "#5C5550" }}>{content}</p>;
     }
   } catch {
-    // Старые данные — plain text
-    return <p className="text-zinc-600 dark:text-zinc-400 leading-relaxed">{content}</p>;
+    return <p className="leading-[1.75]" style={{ color: "#5C5550" }}>{content}</p>;
   }
 
   return (

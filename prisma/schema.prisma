@@ -32,6 +32,7 @@ model Proposal {
   title      String
 
   // BlockNote JSON для каждой секции
+  summaryContent  String? // 0. Саммари (краткое резюме)
   taskContent     String? // 1. Задача проекта
   stagesContent   String? // 2. Этапы проекта
   timelineContent String? // 3. Сроки
@@ -41,12 +42,17 @@ model Proposal {
   casesContent    String? // 7. Кейсы
   nextContent     String? // 8. Что дальше
 
+  // Свободные блоки и порядок секций
+  customBlocks    String? // JSON: [{id, title, content, show}]
+  sectionOrder    String? // JSON: string[] — порядок id секций
+
   contactName  String?
   contactRole  String?
   contactEmail String?
   contactPhone String?
 
   // Видимость секций
+  showSummary  Boolean @default(false)
   showTask     Boolean @default(true)
   showStages   Boolean @default(true)
   showTimeline Boolean @default(true)

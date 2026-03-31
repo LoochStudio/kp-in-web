@@ -4,6 +4,7 @@ export interface ProposalFormData {
   slug: string;
 
   // BlockNote JSON строки для каждой секции
+  summaryContent: string;
   taskContent: string;
   stagesContent: string;
   timelineContent: string;
@@ -13,6 +14,10 @@ export interface ProposalFormData {
   casesContent: string;
   nextContent: string;
 
+  // Свободные блоки и порядок секций (JSON строки)
+  customBlocks: string;
+  sectionOrder: string;
+
   // Контакты
   contactName: string;
   contactRole: string;
@@ -20,6 +25,7 @@ export interface ProposalFormData {
   contactPhone: string;
 
   // Видимость секций
+  showSummary: boolean;
   showTask: boolean;
   showStages: boolean;
   showTimeline: boolean;

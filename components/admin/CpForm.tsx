@@ -3,6 +3,23 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
+import {
+  DndContext,
+  closestCenter,
+  DragEndEvent,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  arrayMove,
+  useSortable,
+  sortableKeyboardCoordinates,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import type { ProposalFormData } from "@/types/proposal";
 
 const BlockEditor = dynamic(() => import("@/components/admin/BlockEditor"), {
@@ -15,10 +32,87 @@ const BlockEditor = dynamic(() => import("@/components/admin/BlockEditor"), {
 const INPUT =
   "w-full border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 bg-white dark:bg-zinc-800 placeholder:text-zinc-300 dark:placeholder:text-zinc-600 outline-none focus:border-zinc-400 dark:focus:border-zinc-500 focus:ring-2 focus:ring-zinc-100 dark:focus:ring-zinc-800 transition-all";
 
+interface CustomBlock {
+  id: string;
+  title: string;
+  content: string;
+  show: boolean;
+}
+
+const DEFAULT_SECTION_ORDER = [
+  "summary", "task", "stages", "timeline", "process",
+  "rates", "pricing", "cases", "next",
+];
+
+interface FixedSectionConfig {
+  title: string;
+  contentKey: keyof ProposalFormData;
+  showKey: keyof ProposalFormData;
+  placeholder: string;
+}
+
+const FIXED_SECTIONS: Record<string, FixedSectionConfig> = {
+  summary: {
+    title: "Саммари",
+    contentKey: "summaryContent",
+    showKey: "showSummary",
+    placeholder: "Краткое резюме КП — для тех, кто читает по диагонали.",
+  },
+  task: {
+    title: "Задача проекта и ориентиры",
+    contentKey: "taskContent",
+    showKey: "showTask",
+    placeholder: "Опишите задачу. / — вставить блок (список, заголовок, картинка...)",
+  },
+  stages: {
+    title: "Этапы проекта",
+    contentKey: "stagesContent",
+    showKey: "showStages",
+    placeholder: "Опишите этапы проекта. Используйте списки или таблицу...",
+  },
+  timeline: {
+    title: "Сроки",
+    contentKey: "timelineContent",
+    showKey: "showTimeline",
+    placeholder: "Укажите сроки. Удобно использовать таблицу (/)...",
+  },
+  process: {
+    title: "Как будем работать",
+    contentKey: "processContent",
+    showKey: "showProcess",
+    placeholder: "Опишите процесс работы. Нумерованный список подойдёт...",
+  },
+  rates: {
+    title: "Ставки специалистов в час",
+    contentKey: "ratesContent",
+    showKey: "showRates",
+    placeholder: "Укажите ставки. Таблица (/) — удобный формат...",
+  },
+  pricing: {
+    title: "Стоимость работ",
+    contentKey: "pricingContent",
+    showKey: "showPricing",
+    placeholder: "Распишите стоимость. Таблица или нумерованный список...",
+  },
+  cases: {
+    title: "Релевантные кейсы",
+    contentKey: "casesContent",
+    showKey: "showCases",
+    placeholder: "Добавьте примеры работ. Можно вставлять картинки (/)...",
+  },
+  next: {
+    title: "Что дальше?",
+    contentKey: "nextContent",
+    showKey: "showNext",
+    placeholder: "Опишите следующие шаги для клиента...",
+  },
+};
+
 const defaultForm: ProposalFormData = {
   clientName: "",
   title: "",
   slug: "",
+  summaryContent: "",
   taskContent: "",
   stagesContent: "",
   timelineContent: "",
@@ -27,17 +121,20 @@ const defaultForm: ProposalFormData = {
   pricingContent: "",
   casesContent: "",
   nextContent: "",
+  customBlocks: "",
+  sectionOrder: "",
   contactName: "",
   contactRole: "",
   contactEmail: "",
   contactPhone: "",
+  showSummary: false,
   showTask: true,
   showStages: true,
   showTimeline: true,
   showProcess: true,
   showRates: true,
   showPricing: true,
-  showCases: false,
+  showCases: true,
   showNext: true,
 };
 
@@ -49,6 +146,11 @@ function generateSlug(clientName: string) {
     .slice(0, 50);
 }
 
+function parseJsonSafe<T>(raw: string | undefined | null, fallback: T): T {
+  if (!raw) return fallback;
+  try { return JSON.parse(raw) as T; } catch { return fallback; }
+}
+
 interface Props {
   mode: "new" | "edit";
   id?: string;
@@ -57,12 +159,22 @@ interface Props {
 
 export default function CpForm({ mode, id, initialData }: Props) {
   const router = useRouter();
-  const [form, setForm] = useState<ProposalFormData>({
-    ...defaultForm,
-    ...initialData,
-  });
+  const [form, setForm] = useState<ProposalFormData>({ ...defaultForm, ...initialData });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  const [sectionOrder, setSectionOrder] = useState<string[]>(() =>
+    parseJsonSafe(initialData?.sectionOrder, DEFAULT_SECTION_ORDER)
+  );
+
+  const [customBlocks, setCustomBlocks] = useState<CustomBlock[]>(() =>
+    parseJsonSafe(initialData?.customBlocks, [])
+  );
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
 
   function set<K extends keyof ProposalFormData>(key: K, value: ProposalFormData[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -74,6 +186,34 @@ export default function CpForm({ mode, id, initialData }: Props) {
       clientName: value,
       slug: mode === "new" ? generateSlug(value) : prev.slug,
     }));
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setSectionOrder((prev) => {
+        const oldIndex = prev.indexOf(active.id as string);
+        const newIndex = prev.indexOf(over.id as string);
+        return arrayMove(prev, oldIndex, newIndex);
+      });
+    }
+  }
+
+  function addCustomBlock() {
+    const newId = crypto.randomUUID();
+    setCustomBlocks((prev) => [...prev, { id: newId, title: "Новый блок", content: "", show: true }]);
+    setSectionOrder((prev) => [...prev, newId]);
+  }
+
+  function removeCustomBlock(blockId: string) {
+    setCustomBlocks((prev) => prev.filter((b) => b.id !== blockId));
+    setSectionOrder((prev) => prev.filter((s) => s !== blockId));
+  }
+
+  function updateCustomBlock(blockId: string, updates: Partial<CustomBlock>) {
+    setCustomBlocks((prev) =>
+      prev.map((b) => (b.id === blockId ? { ...b, ...updates } : b))
+    );
   }
 
   async function handleSave() {
@@ -92,7 +232,11 @@ export default function CpForm({ mode, id, initialData }: Props) {
     const res = await fetch(url, {
       method,
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify({
+        ...form,
+        sectionOrder: JSON.stringify(sectionOrder),
+        customBlocks: JSON.stringify(customBlocks),
+      }),
     });
 
     if (res.ok) {
@@ -152,7 +296,7 @@ export default function CpForm({ mode, id, initialData }: Props) {
       )}
 
       <main className="max-w-5xl mx-auto px-6 py-8 space-y-4">
-        {/* Основное */}
+        {/* Основная информация */}
         <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm p-6 space-y-4">
           <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Основная информация</h2>
           <div className="grid grid-cols-2 gap-4">
@@ -174,46 +318,86 @@ export default function CpForm({ mode, id, initialData }: Props) {
           </div>
         </div>
 
-        <Section number={1} title="Задача проекта и ориентиры" show={form.showTask} onToggle={() => set("showTask", !form.showTask)}>
-          <BlockEditor value={form.taskContent} onChange={(v) => set("taskContent", v)} placeholder="Опишите задачу. / — вставить блок (список, заголовок, картинка...)" />
-        </Section>
+        {/* Секции с drag-and-drop */}
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={sectionOrder} strategy={verticalListSortingStrategy}>
+            <div className="space-y-4">
+              {sectionOrder.map((sectionId) => {
+                const config = FIXED_SECTIONS[sectionId];
 
-        <Section number={2} title="Этапы проекта" show={form.showStages} onToggle={() => set("showStages", !form.showStages)}>
-          <BlockEditor value={form.stagesContent} onChange={(v) => set("stagesContent", v)} placeholder="Опишите этапы проекта. Используйте списки или таблицу..." />
-        </Section>
+                if (config) {
+                  return (
+                    <SortableSection key={sectionId} id={sectionId}>
+                      {(dragHandle) => (
+                        <Section
+                          title={config.title}
+                          show={form[config.showKey] as boolean}
+                          onToggle={() => set(config.showKey, !form[config.showKey])}
+                          dragHandle={dragHandle}
+                        >
+                          <BlockEditor
+                            value={form[config.contentKey] as string}
+                            onChange={(v) => set(config.contentKey, v)}
+                            placeholder={config.placeholder}
+                          />
+                          {sectionId === "next" && (
+                            <div>
+                              <label className="block text-xs font-medium text-zinc-400 dark:text-zinc-500 uppercase tracking-wide mb-2">Контакт менеджера</label>
+                              <div className="grid grid-cols-2 gap-3">
+                                <input value={form.contactName} onChange={(e) => set("contactName", e.target.value)} placeholder="Имя" className={INPUT} />
+                                <input value={form.contactRole} onChange={(e) => set("contactRole", e.target.value)} placeholder="Должность" className={INPUT} />
+                                <input value={form.contactEmail} onChange={(e) => set("contactEmail", e.target.value)} placeholder="Email" type="email" className={INPUT} />
+                                <input value={form.contactPhone} onChange={(e) => set("contactPhone", e.target.value)} placeholder="Телефон" className={INPUT} />
+                              </div>
+                            </div>
+                          )}
+                        </Section>
+                      )}
+                    </SortableSection>
+                  );
+                }
 
-        <Section number={3} title="Сроки" show={form.showTimeline} onToggle={() => set("showTimeline", !form.showTimeline)}>
-          <BlockEditor value={form.timelineContent} onChange={(v) => set("timelineContent", v)} placeholder="Укажите сроки. Удобно использовать таблицу (/)..." />
-        </Section>
+                // Свободный блок
+                const customBlock = customBlocks.find((b) => b.id === sectionId);
+                if (!customBlock) return null;
 
-        <Section number={4} title="Как будем работать" show={form.showProcess} onToggle={() => set("showProcess", !form.showProcess)}>
-          <BlockEditor value={form.processContent} onChange={(v) => set("processContent", v)} placeholder="Опишите процесс работы. Нумерованный список подойдёт..." />
-        </Section>
-
-        <Section number={5} title="Ставки специалистов в час" show={form.showRates} onToggle={() => set("showRates", !form.showRates)}>
-          <BlockEditor value={form.ratesContent} onChange={(v) => set("ratesContent", v)} placeholder="Укажите ставки. Таблица (/) — удобный формат..." />
-        </Section>
-
-        <Section number={6} title="Стоимость работ" show={form.showPricing} onToggle={() => set("showPricing", !form.showPricing)}>
-          <BlockEditor value={form.pricingContent} onChange={(v) => set("pricingContent", v)} placeholder="Распишите стоимость. Таблица или нумерованный список..." />
-        </Section>
-
-        <Section number={7} title="Релевантные кейсы" show={form.showCases} onToggle={() => set("showCases", !form.showCases)}>
-          <BlockEditor value={form.casesContent} onChange={(v) => set("casesContent", v)} placeholder="Добавьте примеры работ. Можно вставлять картинки (/)..." />
-        </Section>
-
-        <Section number={8} title="Что дальше?" show={form.showNext} onToggle={() => set("showNext", !form.showNext)}>
-          <BlockEditor value={form.nextContent} onChange={(v) => set("nextContent", v)} placeholder="Опишите следующие шаги для клиента..." />
-          <div>
-            <label className="block text-xs font-medium text-zinc-400 dark:text-zinc-500 uppercase tracking-wide mb-2">Контакт менеджера</label>
-            <div className="grid grid-cols-2 gap-3">
-              <input value={form.contactName} onChange={(e) => set("contactName", e.target.value)} placeholder="Имя" className={INPUT} />
-              <input value={form.contactRole} onChange={(e) => set("contactRole", e.target.value)} placeholder="Должность" className={INPUT} />
-              <input value={form.contactEmail} onChange={(e) => set("contactEmail", e.target.value)} placeholder="Email" type="email" className={INPUT} />
-              <input value={form.contactPhone} onChange={(e) => set("contactPhone", e.target.value)} placeholder="Телефон" className={INPUT} />
+                return (
+                  <SortableSection key={sectionId} id={sectionId}>
+                    {(dragHandle) => (
+                      <Section
+                        title={customBlock.title}
+                        show={customBlock.show}
+                        onToggle={() => updateCustomBlock(sectionId, { show: !customBlock.show })}
+                        dragHandle={dragHandle}
+                        onTitleChange={(title) => updateCustomBlock(sectionId, { title })}
+                        onDelete={() => removeCustomBlock(sectionId)}
+                        isCustom
+                      >
+                        <BlockEditor
+                          value={customBlock.content}
+                          onChange={(v) => updateCustomBlock(sectionId, { content: v })}
+                          placeholder="Свободный контент блока..."
+                        />
+                      </Section>
+                    )}
+                  </SortableSection>
+                );
+              })}
             </div>
-          </div>
-        </Section>
+          </SortableContext>
+        </DndContext>
+
+        {/* Добавить свободный блок */}
+        <button
+          type="button"
+          onClick={addCustomBlock}
+          className="w-full py-3 border border-dashed border-zinc-200 dark:border-zinc-700 rounded-2xl text-sm text-zinc-400 dark:text-zinc-500 hover:border-zinc-400 dark:hover:border-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors flex items-center justify-center gap-2"
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M7 1v12M1 7h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+          Добавить свободный блок
+        </button>
 
         <div className="pb-8" />
       </main>
@@ -221,29 +405,117 @@ export default function CpForm({ mode, id, initialData }: Props) {
   );
 }
 
+function SortableSection({
+  id,
+  children,
+}: {
+  id: string;
+  children: (dragHandle: React.ReactNode) => React.ReactNode;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 10 : undefined,
+    position: isDragging ? ("relative" as const) : undefined,
+  };
+
+  const dragHandle = (
+    <button
+      type="button"
+      className="cursor-grab active:cursor-grabbing p-1 -m-1 text-zinc-300 hover:text-zinc-500 dark:text-zinc-600 dark:hover:text-zinc-400 transition-colors rounded shrink-0"
+      {...attributes}
+      {...listeners}
+    >
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+        <circle cx="5" cy="3" r="1.2" fill="currentColor" />
+        <circle cx="9" cy="3" r="1.2" fill="currentColor" />
+        <circle cx="5" cy="7" r="1.2" fill="currentColor" />
+        <circle cx="9" cy="7" r="1.2" fill="currentColor" />
+        <circle cx="5" cy="11" r="1.2" fill="currentColor" />
+        <circle cx="9" cy="11" r="1.2" fill="currentColor" />
+      </svg>
+    </button>
+  );
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      {children(dragHandle)}
+    </div>
+  );
+}
+
 function Toggle({ enabled, onToggle }: { enabled: boolean; onToggle: () => void }) {
   return (
-    <button onClick={onToggle} className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${enabled ? "bg-zinc-800 dark:bg-zinc-200" : "bg-zinc-200 dark:bg-zinc-700"}`}>
-      <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white dark:bg-zinc-900 shadow-sm transition-transform ${enabled ? "translate-x-4.5" : "translate-x-0.5"}`} />
+    <button
+      type="button"
+      onClick={onToggle}
+      className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
+        enabled ? "bg-zinc-800 dark:bg-zinc-200" : "bg-zinc-200 dark:bg-zinc-700"
+      }`}
+    >
+      <span
+        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white dark:bg-zinc-900 shadow-sm transition-transform ${
+          enabled ? "translate-x-4.5" : "translate-x-0.5"
+        }`}
+      />
     </button>
   );
 }
 
-function Section({ number, title, show, onToggle, children }: {
-  number: number;
+function Section({
+  title,
+  show,
+  onToggle,
+  children,
+  dragHandle,
+  onTitleChange,
+  onDelete,
+  isCustom,
+}: {
   title: string;
   show: boolean;
   onToggle: () => void;
   children: React.ReactNode;
+  dragHandle?: React.ReactNode;
+  onTitleChange?: (title: string) => void;
+  onDelete?: () => void;
+  isCustom?: boolean;
 }) {
   return (
     <section className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm overflow-hidden">
       <div className="flex items-center justify-between px-6 py-4">
-        <div className="flex items-center gap-3">
-          <span className="w-6 h-6 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 text-xs flex items-center justify-center font-semibold shrink-0">{number}</span>
-          <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{title}</h2>
+        <div className="flex items-center gap-3 min-w-0">
+          {dragHandle}
+          {onTitleChange ? (
+            <input
+              value={title}
+              onChange={(e) => onTitleChange(e.target.value)}
+              className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 bg-transparent outline-none border-b border-transparent focus:border-zinc-300 dark:focus:border-zinc-600 transition-colors min-w-0"
+            />
+          ) : (
+            <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate">{title}</h2>
+          )}
+          {isCustom && (
+            <span className="text-xs text-zinc-300 dark:text-zinc-600 border border-zinc-100 dark:border-zinc-800 rounded px-1.5 py-0.5 shrink-0">
+              свободный
+            </span>
+          )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0 ml-4">
+          {onDelete && (
+            <button
+              type="button"
+              onClick={onDelete}
+              className="text-zinc-300 hover:text-red-400 dark:text-zinc-600 dark:hover:text-red-400 transition-colors p-1"
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M2 4h10M5 4V2.5h4V4M5.5 6.5v4M8.5 6.5v4M3 4l.5 7.5h7L11 4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          )}
           <span className="text-xs text-zinc-400">{show ? "Показывать" : "Скрыто"}</span>
           <Toggle enabled={show} onToggle={onToggle} />
         </div>
