@@ -1,10 +1,11 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { loginAction } from "@/app/actions/auth";
 
 export default function LoginPage() {
   const [error, action, pending] = useActionState(loginAction, "");
+  const [showPassword, setShowPassword] = useState(false);
 
   return (
     <div
@@ -78,20 +79,42 @@ export default function LoginPage() {
               >
                 Пароль
               </label>
-              <input
-                type="password"
-                name="password"
-                placeholder="••••••••"
-                className="w-full rounded-xl px-4 py-3 text-sm outline-none transition-all duration-300"
-                style={{
-                  background: "rgba(255,255,255,0.05)",
-                  border: "1px solid #2A1F18",
-                  color: "#FDFAF8",
-                }}
-                onFocus={(e) => ((e.target as HTMLInputElement).style.borderColor = "#5A4A42")}
-                onBlur={(e) => ((e.target as HTMLInputElement).style.borderColor = "#2A1F18")}
-                required
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  name="password"
+                  placeholder="••••••••"
+                  className="w-full rounded-xl px-4 py-3 pr-11 text-sm outline-none transition-all duration-300"
+                  style={{
+                    background: "rgba(255,255,255,0.05)",
+                    border: "1px solid #2A1F18",
+                    color: "#FDFAF8",
+                  }}
+                  onFocus={(e) => ((e.target as HTMLInputElement).style.borderColor = "#5A4A42")}
+                  onBlur={(e) => ((e.target as HTMLInputElement).style.borderColor = "#2A1F18")}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 transition-colors"
+                  style={{ color: "#5A4A42" }}
+                  tabIndex={-1}
+                >
+                  {showPassword ? (
+                    <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                      <path d="M1 7.5C1 7.5 3.5 3 7.5 3s6.5 4.5 6.5 4.5S11.5 12 7.5 12 1 7.5 1 7.5z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
+                      <circle cx="7.5" cy="7.5" r="1.8" stroke="currentColor" strokeWidth="1.2"/>
+                      <path d="M2 2l11 11" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                    </svg>
+                  ) : (
+                    <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                      <path d="M1 7.5C1 7.5 3.5 3 7.5 3s6.5 4.5 6.5 4.5S11.5 12 7.5 12 1 7.5 1 7.5z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
+                      <circle cx="7.5" cy="7.5" r="1.8" stroke="currentColor" strokeWidth="1.2"/>
+                    </svg>
+                  )}
+                </button>
+              </div>
             </div>
 
             {error && (
