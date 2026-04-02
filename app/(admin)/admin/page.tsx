@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import ProposalActions from "@/components/admin/ProposalActions";
 import ThemeToggle from "@/components/ui/ThemeToggle";
+import NotionImportButton from "@/components/admin/NotionImportButton";
 
 const statusStyles: Record<string, { bg: string; color: string; label: string }> = {
   DRAFT:    { bg: "bg-zinc-100 dark:bg-zinc-800",          color: "text-zinc-500 dark:text-zinc-400",  label: "Черновик" },
@@ -65,12 +66,15 @@ export default async function AdminPage() {
               {proposals.length} {proposals.length === 1 ? "предложение" : "предложений"}
             </p>
           </div>
-          <Link
-            href="/admin/cp/new"
-            className="text-sm px-4 py-2 rounded-lg font-medium transition-colors duration-300 bg-[#333037] hover:bg-[#1C1917] text-[#FDFAF8]"
-          >
-            + Создать КП
-          </Link>
+          <div className="flex items-center gap-2">
+            <NotionImportButton />
+            <Link
+              href="/admin/cp/new"
+              className="text-sm px-4 py-2 rounded-lg font-medium transition-colors duration-300 bg-[#333037] hover:bg-[#1C1917] text-[#FDFAF8]"
+            >
+              + Создать КП
+            </Link>
+          </div>
         </div>
 
         {proposals.length === 0 ? (
