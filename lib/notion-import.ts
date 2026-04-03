@@ -374,6 +374,7 @@ export async function importFromNotion(
       slug,
       clientName,
       title,
+      notionUrl: notionUrl,
       status: "DRAFT",
       taskContent:     toJson("task"),
       stagesContent:   toJson("stages"),
@@ -401,4 +402,90 @@ export async function importFromNotion(
   });
 
   return { slug, title, clientName };
+}
+
+// ── Sync existing proposal from Notion ───────────────────────
+
+export async function syncFromNotion(proposalId: string): Promise<void> {
+  const proposal = await prisma.proposal.findUnique({ where: { id: proposalId } });
+  if (!proposal) throw new Error("КП не найдено");
+  if (!proposal.notionUrl) throw new Error("У этого КП нет привязанной страницы Notion");
+
+  const token = process.env.NOTION_TOKEN;
+  if (!token) throw new Error("NOTION_TOKEN не задан в переменных окружения");
+
+  const idMatch = proposal.notionUrl.match(/([a-f0-9]{8}-?[a-f0-9]{4}-?[a-f0-9]{4}-?[a-f0-9]{4}-?[a-f0-9]{12}|[a-f0-9]{32})/i);
+  if (!idMatch) throw new Error("Не удалось извлечь ID страницы из URL Notion");
+  const pageId = idMatch[1].replace(/-/g, "");
+
+  const client = new Client({ auth: token });
+
+  const childMap = new Map<string, any[]>();
+  const topBlocks = await fetchChildren(client, pageId, childMap);
+
+  const sections: Record<SectionKey, any[]> = {
+    task: [], stages: [], timeline: [], process: [],
+    rates: [], pricing: [], cases: [], next: [],
+  };
+
+  let currentSection: SectionKey | null = null;
+
+  for (const block of topBlocks) {
+    const type: string = block.type;
+    const isTopHeading = type === "heading_1" || type === "heading_2";
+
+    if (isTopHeading) {
+      const text: string = block[type]?.rich_text
+        ?.map((r: any) => r.plain_text)
+        .join("") ?? "";
+      const detected = detectSection(text);
+      if (detected) {
+        currentSection = detected;
+        continue;
+      }
+    }
+
+    if (currentSection) {
+      sections[currentSection].push(block);
+    }
+  }
+
+  const toJson = (key: SectionKey): string | null => {
+    const blocks = sections[key];
+    if (!blocks.length) return null;
+    const bnBlocks: BNBlock[] = [];
+    for (const block of blocks) {
+      bnBlocks.push(...convertBlock(block, childMap, key));
+    }
+    return bnBlocks.length ? JSON.stringify(bnBlocks) : null;
+  };
+
+  const { contactName, contactRole, contactEmail, contactPhone } =
+    extractContacts(sections.next);
+
+  await prisma.proposal.update({
+    where: { id: proposalId },
+    data: {
+      taskContent:     toJson("task"),
+      stagesContent:   toJson("stages"),
+      timelineContent: toJson("timeline"),
+      processContent:  toJson("process"),
+      ratesContent:    toJson("rates"),
+      pricingContent:  toJson("pricing"),
+      casesContent:    toJson("cases"),
+      nextContent:     toJson("next"),
+      showTask:     !!sections.task.length,
+      showStages:   !!sections.stages.length,
+      showTimeline: !!sections.timeline.length,
+      showProcess:  !!sections.process.length,
+      showRates:    !!sections.rates.length,
+      showPricing:  !!sections.pricing.length,
+      showCases:    !!sections.cases.length,
+      showNext:     !!sections.next.length,
+      contactName,
+      contactRole,
+      contactEmail,
+      contactPhone,
+    },
+  });
 }

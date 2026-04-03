@@ -56,14 +56,14 @@ export default function UserManager({ users: initial, currentUserId }: Props) {
   return (
     <div className="space-y-6">
       {/* Список */}
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden">
         {users.length === 0 ? (
           <p className="text-sm text-zinc-400 text-center py-10">Нет пользователей</p>
         ) : (
           users.map((u, i) => (
             <div
               key={u.id}
-              className={`flex items-center gap-4 px-6 py-4 ${i !== users.length - 1 ? "border-b border-zinc-50 dark:border-zinc-800" : ""}`}
+              className={`flex items-center gap-4 px-6 py-4 ${i !== users.length - 1 ? "border-b border-zinc-50" : ""}`}
             >
               <div
                 className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs font-semibold"
@@ -72,7 +72,7 @@ export default function UserManager({ users: initial, currentUserId }: Props) {
                 {u.name.charAt(0).toUpperCase()}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                <p className="text-sm font-medium text-zinc-900">
                   {u.name}
                   {u.id === currentUserId && (
                     <span className="ml-2 text-[10px] text-zinc-400">(вы)</span>
@@ -80,16 +80,16 @@ export default function UserManager({ users: initial, currentUserId }: Props) {
                 </p>
                 <p className="text-xs text-zinc-400">{u.email}</p>
               </div>
-              <span className="text-xs text-zinc-300 dark:text-zinc-600 shrink-0">
+              <span className="text-xs text-zinc-300 shrink-0">
                 {u._count.proposals} КП
               </span>
-              <span className="text-xs text-zinc-300 dark:text-zinc-600 shrink-0 tabular-nums">
+              <span className="text-xs text-zinc-300 shrink-0 tabular-nums">
                 {new Date(u.createdAt).toLocaleDateString("ru-RU")}
               </span>
               {u.id !== currentUserId && (
                 <button
                   onClick={() => handleDelete(u.id)}
-                  className="text-xs text-zinc-300 hover:text-red-400 dark:text-zinc-600 dark:hover:text-red-400 transition-colors duration-300 shrink-0"
+                  className="text-xs text-zinc-300 hover:text-red-400 transition-colors duration-300 shrink-0"
                 >
                   Удалить
                 </button>
@@ -100,8 +100,8 @@ export default function UserManager({ users: initial, currentUserId }: Props) {
       </div>
 
       {/* Форма создания */}
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm p-6">
-        <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-5">Добавить менеджера</h2>
+      <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-6">
+        <h2 className="text-sm font-semibold text-zinc-900 mb-5">Добавить менеджера</h2>
         <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <input
             type="text"
@@ -109,7 +109,7 @@ export default function UserManager({ users: initial, currentUserId }: Props) {
             value={form.name}
             onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
             required
-            className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-transparent px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-zinc-400 dark:focus:border-zinc-500 transition-colors"
+            className="rounded-lg border border-zinc-200 bg-transparent px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-400 transition-colors"
           />
           <input
             type="email"
@@ -117,7 +117,7 @@ export default function UserManager({ users: initial, currentUserId }: Props) {
             value={form.email}
             onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
             required
-            className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-transparent px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-zinc-400 dark:focus:border-zinc-500 transition-colors"
+            className="rounded-lg border border-zinc-200 bg-transparent px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-400 transition-colors"
           />
           <div className="relative">
             <input
@@ -126,12 +126,12 @@ export default function UserManager({ users: initial, currentUserId }: Props) {
               value={form.password}
               onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
               required
-              className="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-transparent px-3 py-2 pr-9 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-zinc-400 dark:focus:border-zinc-500 transition-colors"
+              className="w-full rounded-lg border border-zinc-200 bg-transparent px-3 py-2 pr-9 text-sm text-zinc-900 outline-none focus:border-zinc-400 transition-colors"
             />
             <button
               type="button"
               onClick={() => setShowPassword((v) => !v)}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 transition-colors"
               tabIndex={-1}
             >
               {showPassword ? (

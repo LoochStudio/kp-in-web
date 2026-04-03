@@ -30,6 +30,7 @@ model Proposal {
 
   clientName String
   title      String
+  notionUrl  String? // Ссылка на источник в Notion (если импортировано)
 
   // BlockNote JSON для каждой секции
   summaryContent  String? // 0. Саммари (краткое резюме)

@@ -25,12 +25,12 @@ import type { ProposalFormData } from "@/types/proposal";
 const BlockEditor = dynamic(() => import("@/components/admin/BlockEditor"), {
   ssr: false,
   loading: () => (
-    <div className="rounded-xl border border-zinc-200 dark:border-zinc-700 h-32 bg-zinc-50 dark:bg-zinc-800 animate-pulse" />
+    <div className="rounded-xl border border-zinc-200 h-32 bg-zinc-50 animate-pulse" />
   ),
 });
 
 const INPUT =
-  "w-full border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 bg-white dark:bg-zinc-800 placeholder:text-zinc-300 dark:placeholder:text-zinc-600 outline-none focus:border-zinc-400 dark:focus:border-zinc-500 focus:ring-2 focus:ring-zinc-100 dark:focus:ring-zinc-800 transition-all";
+  "w-full border border-zinc-200 rounded-lg px-3 py-2.5 text-sm text-zinc-900 bg-white placeholder:text-zinc-300 outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-100 transition-all";
 
 interface CustomBlock {
   id: string;
@@ -250,32 +250,32 @@ export default function CpForm({ mode, id, initialData }: Props) {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
+    <div className="min-h-screen bg-zinc-50">
       {/* Header */}
-      <header className="bg-white dark:bg-zinc-900 border-b border-zinc-100 dark:border-zinc-800 sticky top-0 z-10">
+      <header className="bg-white border-b border-zinc-100 sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm">
-            <a href="/admin" className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors">
+            <a href="/admin" className="text-zinc-400 hover:text-zinc-700 transition-colors">
               Предложения
             </a>
-            <span className="text-zinc-200 dark:text-zinc-700">/</span>
-            <span className="text-zinc-900 dark:text-zinc-100 font-medium">
+            <span className="text-zinc-200">/</span>
+            <span className="text-zinc-900 font-medium">
               {mode === "new" ? "Новое КП" : form.clientName || "Редактирование"}
             </span>
           </div>
           <div className="flex items-center gap-3">
             {mode === "edit" && form.slug && (
-              <a href={`/kp/${form.slug}`} target="_blank" className="text-sm text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors px-3 py-2">
+              <a href={`/kp/${form.slug}`} target="_blank" className="text-sm text-zinc-400 hover:text-zinc-700 transition-colors px-3 py-2">
                 Открыть ↗
               </a>
             )}
-            <a href="/admin" className="text-sm text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors px-3 py-2">
+            <a href="/admin" className="text-sm text-zinc-400 hover:text-zinc-700 transition-colors px-3 py-2">
               Отмена
             </a>
             <button
               onClick={handleSave}
               disabled={saving || !form.clientName || !form.title}
-              className="bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-sm px-4 py-2 rounded-lg hover:bg-zinc-700 dark:hover:bg-zinc-300 disabled:opacity-40 transition-colors font-medium"
+              className="bg-zinc-900 text-white text-sm px-4 py-2 rounded-lg hover:bg-zinc-700 disabled:opacity-40 transition-colors font-medium"
             >
               {saving ? "Сохранение..." : "Сохранить"}
             </button>
@@ -284,8 +284,8 @@ export default function CpForm({ mode, id, initialData }: Props) {
       </header>
 
       {error && (
-        <div className="bg-red-50 dark:bg-red-950/50 border-b border-red-100 dark:border-red-900/50 px-6 py-3">
-          <div className="max-w-5xl mx-auto flex items-center gap-2 text-red-600 dark:text-red-400">
+        <div className="bg-red-50 border-b border-red-100 px-6 py-3">
+          <div className="max-w-5xl mx-auto flex items-center gap-2 text-red-600">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="shrink-0">
               <circle cx="7" cy="7" r="6" stroke="currentColor" strokeWidth="1.5" />
               <path d="M7 4v3.5M7 9.5v.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -297,8 +297,8 @@ export default function CpForm({ mode, id, initialData }: Props) {
 
       <main className="max-w-5xl mx-auto px-6 py-8 space-y-4">
         {/* Основная информация */}
-        <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm p-6 space-y-4">
-          <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Основная информация</h2>
+        <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-6 space-y-4">
+          <h2 className="text-sm font-semibold text-zinc-900">Основная информация</h2>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-zinc-400 uppercase tracking-wide mb-1.5">Клиент</label>
@@ -311,9 +311,9 @@ export default function CpForm({ mode, id, initialData }: Props) {
           </div>
           <div>
             <label className="block text-xs font-medium text-zinc-400 uppercase tracking-wide mb-1.5">Публичная ссылка</label>
-            <div className="flex items-center border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden focus-within:border-zinc-400 dark:focus-within:border-zinc-500 focus-within:ring-2 focus-within:ring-zinc-100 dark:focus-within:ring-zinc-800 transition-all">
-              <span className="px-3 py-2.5 text-sm text-zinc-400 bg-zinc-50 dark:bg-zinc-800 border-r border-zinc-200 dark:border-zinc-700 whitespace-nowrap">/kp/</span>
-              <input value={form.slug} onChange={(e) => set("slug", e.target.value)} placeholder="romashka-llc" className="flex-1 px-3 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 bg-white dark:bg-zinc-900 placeholder:text-zinc-300 dark:placeholder:text-zinc-600 outline-none" />
+            <div className="flex items-center border border-zinc-200 rounded-lg overflow-hidden focus-within:border-zinc-400 focus-within:ring-2 focus-within:ring-zinc-100 transition-all">
+              <span className="px-3 py-2.5 text-sm text-zinc-400 bg-zinc-50 border-r border-zinc-200 whitespace-nowrap">/kp/</span>
+              <input value={form.slug} onChange={(e) => set("slug", e.target.value)} placeholder="romashka-llc" className="flex-1 px-3 py-2.5 text-sm text-zinc-900 bg-white placeholder:text-zinc-300 outline-none" />
             </div>
           </div>
         </div>
@@ -342,7 +342,7 @@ export default function CpForm({ mode, id, initialData }: Props) {
                           />
                           {sectionId === "next" && (
                             <div>
-                              <label className="block text-xs font-medium text-zinc-400 dark:text-zinc-500 uppercase tracking-wide mb-2">Контакт менеджера</label>
+                              <label className="block text-xs font-medium text-zinc-400 uppercase tracking-wide mb-2">Контакт менеджера</label>
                               <div className="grid grid-cols-2 gap-3">
                                 <input value={form.contactName} onChange={(e) => set("contactName", e.target.value)} placeholder="Имя" className={INPUT} />
                                 <input value={form.contactRole} onChange={(e) => set("contactRole", e.target.value)} placeholder="Должность" className={INPUT} />
@@ -391,7 +391,7 @@ export default function CpForm({ mode, id, initialData }: Props) {
         <button
           type="button"
           onClick={addCustomBlock}
-          className="w-full py-3 border border-dashed border-zinc-200 dark:border-zinc-700 rounded-2xl text-sm text-zinc-400 dark:text-zinc-500 hover:border-zinc-400 dark:hover:border-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors flex items-center justify-center gap-2"
+          className="w-full py-3 border border-dashed border-zinc-200 rounded-2xl text-sm text-zinc-400 hover:border-zinc-400 hover:text-zinc-600 transition-colors flex items-center justify-center gap-2"
         >
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
             <path d="M7 1v12M1 7h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -425,7 +425,7 @@ function SortableSection({
   const dragHandle = (
     <button
       type="button"
-      className="cursor-grab active:cursor-grabbing p-1 -m-1 text-zinc-300 hover:text-zinc-500 dark:text-zinc-600 dark:hover:text-zinc-400 transition-colors rounded shrink-0"
+      className="cursor-grab active:cursor-grabbing p-1 -m-1 text-zinc-300 hover:text-zinc-500 transition-colors rounded shrink-0"
       {...attributes}
       {...listeners}
     >
@@ -453,11 +453,11 @@ function Toggle({ enabled, onToggle }: { enabled: boolean; onToggle: () => void 
       type="button"
       onClick={onToggle}
       className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
-        enabled ? "bg-zinc-800 dark:bg-zinc-200" : "bg-zinc-200 dark:bg-zinc-700"
+        enabled ? "bg-zinc-800" : "bg-zinc-200"
       }`}
     >
       <span
-        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white dark:bg-zinc-900 shadow-sm transition-transform ${
+        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform ${
           enabled ? "translate-x-4.5" : "translate-x-0.5"
         }`}
       />
@@ -485,7 +485,7 @@ function Section({
   isCustom?: boolean;
 }) {
   return (
-    <section className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm overflow-hidden">
+    <section className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden">
       <div className="flex items-center justify-between px-6 py-4">
         <div className="flex items-center gap-3 min-w-0">
           {dragHandle}
@@ -493,13 +493,13 @@ function Section({
             <input
               value={title}
               onChange={(e) => onTitleChange(e.target.value)}
-              className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 bg-transparent outline-none border-b border-transparent focus:border-zinc-300 dark:focus:border-zinc-600 transition-colors min-w-0"
+              className="text-sm font-semibold text-zinc-900 bg-transparent outline-none border-b border-transparent focus:border-zinc-300 transition-colors min-w-0"
             />
           ) : (
-            <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate">{title}</h2>
+            <h2 className="text-sm font-semibold text-zinc-900 truncate">{title}</h2>
           )}
           {isCustom && (
-            <span className="text-xs text-zinc-300 dark:text-zinc-600 border border-zinc-100 dark:border-zinc-800 rounded px-1.5 py-0.5 shrink-0">
+            <span className="text-xs text-zinc-300 border border-zinc-100 rounded px-1.5 py-0.5 shrink-0">
               свободный
             </span>
           )}
@@ -509,7 +509,7 @@ function Section({
             <button
               type="button"
               onClick={onDelete}
-              className="text-zinc-300 hover:text-red-400 dark:text-zinc-600 dark:hover:text-red-400 transition-colors p-1"
+              className="text-zinc-300 hover:text-red-400 transition-colors p-1"
             >
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                 <path d="M2 4h10M5 4V2.5h4V4M5.5 6.5v4M8.5 6.5v4M3 4l.5 7.5h7L11 4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
@@ -521,7 +521,7 @@ function Section({
         </div>
       </div>
       {show && (
-        <div className="px-6 pb-6 border-t border-zinc-50 dark:border-zinc-800">
+        <div className="px-6 pb-6 border-t border-zinc-50">
           <div className="pt-4 space-y-4">{children}</div>
         </div>
       )}

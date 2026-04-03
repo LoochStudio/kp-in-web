@@ -55,7 +55,7 @@ export default function NotionImportButton() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="text-sm px-4 py-2 rounded-lg font-medium transition-colors duration-300 border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+        className="text-sm px-4 py-2 rounded-lg font-medium transition-colors duration-300 border border-zinc-200 text-zinc-600 hover:bg-zinc-100"
       >
         Импорт из Notion
       </button>
@@ -66,8 +66,8 @@ export default function NotionImportButton() {
           style={{ background: "rgba(0,0,0,0.4)" }}
           onClick={(e) => e.target === e.currentTarget && handleClose()}
         >
-          <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-xl w-full max-w-md p-6">
-            <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-1">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+            <h2 className="text-base font-semibold text-zinc-900 mb-1">
               Импорт из Notion
             </h2>
             <p className="text-sm text-zinc-400 mb-5">
@@ -76,8 +76,8 @@ export default function NotionImportButton() {
 
             {state === "done" && result ? (
               <div className="space-y-4">
-                <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900 p-4">
-                  <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-4">
+                  <p className="text-sm font-medium text-emerald-700">
                     КП создано
                   </p>
                   <p className="text-sm text-zinc-500 mt-1">
@@ -94,7 +94,7 @@ export default function NotionImportButton() {
                   </a>
                   <button
                     onClick={handleClose}
-                    className="flex-1 text-sm px-4 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors duration-300"
+                    className="flex-1 text-sm px-4 py-2 rounded-lg border border-zinc-200 text-zinc-600 hover:bg-zinc-50 transition-colors duration-300"
                   >
                     Закрыть
                   </button>
@@ -110,7 +110,7 @@ export default function NotionImportButton() {
                     placeholder="https://www.notion.so/workspace/..."
                     required
                     disabled={state === "loading"}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-300 dark:focus:ring-zinc-600 disabled:opacity-50"
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-zinc-200 bg-white text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-300 disabled:opacity-50"
                   />
                   {state === "error" && (
                     <p className="text-xs text-red-500 mt-2">{error}</p>
@@ -129,7 +129,7 @@ export default function NotionImportButton() {
                     type="button"
                     onClick={handleClose}
                     disabled={state === "loading"}
-                    className="flex-1 text-sm px-4 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors duration-300"
+                    className="flex-1 text-sm px-4 py-2 rounded-lg border border-zinc-200 text-zinc-600 hover:bg-zinc-50 transition-colors duration-300"
                   >
                     Отмена
                   </button>

@@ -15,13 +15,15 @@ interface Props {
   id: string;
   slug: string;
   status: string;
+  notionUrl?: string | null;
 }
 
-export default function ProposalActions({ id, slug, status }: Props) {
+export default function ProposalActions({ id, slug, status, notionUrl }: Props) {
   const router = useRouter();
   const [copied, setCopied] = useState(false);
   const [currentStatus, setCurrentStatus] = useState(status);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   async function copyLink() {
     const url = `${window.location.origin}/kp/${slug}`;
@@ -42,6 +44,13 @@ export default function ProposalActions({ id, slug, status }: Props) {
 
   async function handleDelete() {
     await fetch(`/api/cp/${id}`, { method: "DELETE" });
+    router.refresh();
+  }
+
+  async function handleSync() {
+    setSyncing(true);
+    await fetch(`/api/notion-sync/${id}`, { method: "POST" });
+    setSyncing(false);
     router.refresh();
   }
 
@@ -69,16 +78,26 @@ export default function ProposalActions({ id, slug, status }: Props) {
         <select
           value={currentStatus}
           onChange={(e) => changeStatus(e.target.value)}
-          className="text-xs border border-zinc-200 dark:border-zinc-700 rounded-lg px-2 py-1.5 text-zinc-600 dark:text-zinc-400 outline-none focus:border-zinc-400 dark:focus:border-zinc-500 bg-white dark:bg-zinc-900 cursor-pointer"
+          className="text-xs border border-zinc-200 rounded-lg px-2 py-1.5 text-zinc-600 outline-none focus:border-zinc-400 bg-white cursor-pointer"
         >
           {Object.entries(statusLabel).map(([value, label]) => (
             <option key={value} value={value}>{label}</option>
           ))}
         </select>
 
+        {notionUrl && (
+          <button
+            onClick={handleSync}
+            disabled={syncing}
+            className="text-xs text-zinc-400 hover:text-zinc-700 transition-colors px-2 py-1.5 rounded-lg hover:bg-zinc-50 disabled:opacity-40"
+          >
+            {syncing ? "Синхр..." : "↻ Notion"}
+          </button>
+        )}
+
         <button
           onClick={copyLink}
-          className="text-xs text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors px-2 py-1.5 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800"
+          className="text-xs text-zinc-400 hover:text-zinc-700 transition-colors px-2 py-1.5 rounded-lg hover:bg-zinc-50"
         >
           {copied ? "Скопировано ✓" : "Ссылка"}
         </button>
@@ -86,28 +105,28 @@ export default function ProposalActions({ id, slug, status }: Props) {
         <a
           href={`/kp/${slug}`}
           target="_blank"
-          className="text-xs text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors px-2 py-1.5 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800"
+          className="text-xs text-zinc-400 hover:text-zinc-700 transition-colors px-2 py-1.5 rounded-lg hover:bg-zinc-50"
         >
           ↗
         </a>
 
         <a
           href={`/admin/cp/${id}/edit`}
-          className="text-xs text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors px-2 py-1.5 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800"
+          className="text-xs text-zinc-400 hover:text-zinc-700 transition-colors px-2 py-1.5 rounded-lg hover:bg-zinc-50"
         >
           Изменить
         </a>
 
         <button
           onClick={handleDuplicate}
-          className="text-xs text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors px-2 py-1.5 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800"
+          className="text-xs text-zinc-400 hover:text-zinc-700 transition-colors px-2 py-1.5 rounded-lg hover:bg-zinc-50"
         >
           Дублировать
         </button>
 
         <button
           onClick={() => setShowDeleteModal(true)}
-          className="text-xs text-zinc-400 hover:text-red-500 transition-colors px-2 py-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/50"
+          className="text-xs text-zinc-400 hover:text-red-500 transition-colors px-2 py-1.5 rounded-lg hover:bg-red-50"
         >
           Удалить
         </button>
