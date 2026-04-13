@@ -1,5 +1,7 @@
 import { Client } from "@notionhq/client";
 import { randomBytes } from "crypto";
+import { writeFile, mkdir } from "fs/promises";
+import { join } from "path";
 import { prisma } from "./prisma";
 
 // ── Transliteration RU → latin slug ──────────────────────────
@@ -22,13 +24,204 @@ function slugify(text: string): string {
     .slice(0, 40);
 }
 
+// ── OG metadata fetching ─────────────────────────────────────
+
+interface OGData {
+  title?: string;
+  description?: string;
+  image?: string;
+}
+
+function extractOGMeta(html: string, property: string): string | undefined {
+  const re1 = new RegExp(`<meta[^>]+property=["']${property}["'][^>]+content=["']([^"']+)["']`, "i");
+  const re2 = new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+property=["']${property}["']`, "i");
+  return (html.match(re1) ?? html.match(re2))?.[1];
+}
+
+async function fetchOG(url: string): Promise<OGData> {
+  try {
+    const res = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; KP-bot/1.0)" },
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) return {};
+    const html = await res.text();
+    const title =
+      extractOGMeta(html, "og:title") ??
+      html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1]?.trim();
+    const description = extractOGMeta(html, "og:description");
+    const image = extractOGMeta(html, "og:image");
+    return { title, description, image };
+  } catch {
+    return {};
+  }
+}
+
+function collectBookmarks(blocks: any[], childMap: Map<string, any[]>): any[] {
+  const result: any[] = [];
+  for (const block of blocks) {
+    if (block.type === "bookmark") result.push(block);
+    const children = childMap.get(block.id) ?? [];
+    if (children.length) result.push(...collectBookmarks(children, childMap));
+  }
+  return result;
+}
+
+async function prefetchOG(
+  sections: Record<string, any[]>,
+  childMap: Map<string, any[]>
+): Promise<Map<string, OGData>> {
+  const ogMap = new Map<string, OGData>();
+  const bookmarks = collectBookmarks(Object.values(sections).flat(), childMap);
+  await Promise.all(
+    bookmarks.map(async (block) => {
+      const url: string = block.bookmark?.url ?? "";
+      if (!url) return;
+      ogMap.set(block.id, await fetchOG(url));
+    })
+  );
+  return ogMap;
+}
+
+// ── Notion database (timeline) fetching ──────────────────────
+
+interface TimelineRow {
+  name: string;
+  start: string; // DD.MM.YYYY
+  end: string;   // DD.MM.YYYY
+}
+
+function isoToDMY(iso: string): string {
+  const [y, m, d] = iso.split("-");
+  return `${d}.${m}.${y}`;
+}
+
+async function prefetchDatabases(
+  sections: Record<string, any[]>,
+  token: string
+): Promise<Map<string, TimelineRow[]>> {
+  const dbMap = new Map<string, TimelineRow[]>();
+
+  const allBlocks = Object.values(sections).flat();
+  const dbBlocks = allBlocks.filter((b) => b.type === "child_database");
+
+  await Promise.all(
+    dbBlocks.map(async (block) => {
+      try {
+        // Используем REST API напрямую — SDK v5.x использует новый эндпоинт /data_sources,
+        // который не принимает старые block.id. Классический /databases/:id/query стабилен.
+        const res = await fetch(`https://api.notion.com/v1/databases/${block.id}/query`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Notion-Version": "2022-06-28",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({}),
+          signal: AbortSignal.timeout(10000),
+        });
+
+        if (!res.ok) return;
+
+        const data = await res.json();
+        const rows: TimelineRow[] = [];
+
+        for (const page of data.results ?? []) {
+          const props = page.properties ?? {};
+
+          const titleProp = Object.values(props).find((p: any) => p.type === "title") as any;
+          const name: string = titleProp?.title?.[0]?.plain_text ?? "";
+          if (!name) continue;
+
+          const dateProp = Object.values(props).find((p: any) => p.type === "date") as any;
+          const dateData = dateProp?.date;
+          if (!dateData?.start) continue;
+
+          rows.push({
+            name,
+            start: isoToDMY(dateData.start),
+            end: isoToDMY(dateData.end ?? dateData.start),
+          });
+        }
+
+        if (rows.length) dbMap.set(block.id, rows);
+      } catch (err) {
+        console.warn(`[notion-import] Failed to query database ${block.id}:`, err);
+      }
+    })
+  );
+
+  return dbMap;
+}
+
+// ── Image downloading ─────────────────────────────────────────
+
+const IMAGE_CONTENT_TYPES: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/gif": "gif",
+};
+
+async function downloadImage(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+    if (!res.ok) return null;
+    const ct = res.headers.get("content-type")?.split(";")[0].trim() ?? "";
+    const ext = IMAGE_CONTENT_TYPES[ct] ?? "jpg";
+    const buffer = Buffer.from(await res.arrayBuffer());
+    const filename = `${randomBytes(8).toString("hex")}.${ext}`;
+    const uploadDir = join(process.cwd(), "public", "uploads");
+    await mkdir(uploadDir, { recursive: true });
+    await writeFile(join(uploadDir, filename), buffer);
+    return `/uploads/${filename}`;
+  } catch {
+    return null;
+  }
+}
+
+function collectImageBlocks(blocks: any[], childMap: Map<string, any[]>): any[] {
+  const result: any[] = [];
+  for (const block of blocks) {
+    if (block.type === "image") result.push(block);
+    const children = childMap.get(block.id) ?? [];
+    if (children.length) result.push(...collectImageBlocks(children, childMap));
+  }
+  return result;
+}
+
+async function prefetchImages(
+  sections: Record<string, any[]>,
+  childMap: Map<string, any[]>
+): Promise<Map<string, string>> {
+  const imageMap = new Map<string, string>();
+  const imageBlocks = collectImageBlocks(Object.values(sections).flat(), childMap);
+  await Promise.all(
+    imageBlocks.map(async (block) => {
+      const data = block.image;
+      let url: string | null = null;
+      if (data?.type === "external") {
+        // Внешние URL постоянные — берём напрямую
+        url = data.external?.url ?? null;
+      } else if (data?.type === "file") {
+        // Notion-hosted URL истекает через ~1 час — скачиваем и сохраняем локально
+        url = await downloadImage(data.file?.url ?? "");
+      }
+      if (url) imageMap.set(block.id, url);
+    })
+  );
+  return imageMap;
+}
+
 // ── BlockNote helpers ─────────────────────────────────────────
 
 function uid() {
   return randomBytes(6).toString("hex");
 }
 
-type BNInline = { type: "text"; text: string; styles: Record<string, boolean> };
+type BNTextNode = { type: "text"; text: string; styles: Record<string, boolean> };
+type BNLinkNode = { type: "link"; href: string; content: BNTextNode[] };
+type BNInline = BNTextNode | BNLinkNode;
 type BNBlock = Record<string, unknown>;
 
 function richTextToInline(rt: any[]): BNInline[] {
@@ -40,7 +233,15 @@ function richTextToInline(rt: any[]): BNInline[] {
     if (item.annotations?.strikethrough) styles.strikethrough = true;
     if (item.annotations?.underline) styles.underline = true;
     if (item.annotations?.code) styles.code = true;
-    return { type: "text", text: item.plain_text ?? "", styles };
+
+    const textNode: BNTextNode = { type: "text", text: item.plain_text ?? "", styles };
+
+    // Если текст является ссылкой — оборачиваем в link-ноду
+    if (item.href) {
+      return { type: "link", href: item.href, content: [textNode] } as BNLinkNode;
+    }
+
+    return textNode;
   });
 }
 
@@ -70,7 +271,10 @@ type SectionKey = "task" | "stages" | "timeline" | "process" | "rates" | "pricin
 function convertBlock(
   block: any,
   childMap: Map<string, any[]>,
-  sectionKey?: SectionKey
+  sectionKey?: SectionKey,
+  ogMap?: Map<string, OGData>,
+  imageMap?: Map<string, string>,
+  dbMap?: Map<string, TimelineRow[]>
 ): BNBlock[] {
   const type: string = block.type;
   const data = block[type];
@@ -78,7 +282,7 @@ function convertBlock(
   switch (type) {
     case "paragraph": {
       const content = richTextToInline(data.rich_text);
-      if (!content.some((c) => c.text.trim())) return [];
+      if (!content.some((c) => c.type === "link" || c.text.trim())) return [];
       return [para(content)];
     }
 
@@ -96,7 +300,7 @@ function convertBlock(
     case "bulleted_list_item": {
       const result: BNBlock[] = [bulletLi(richTextToInline(data.rich_text))];
       for (const child of childMap.get(block.id) ?? []) {
-        result.push(...convertBlock(child, childMap, sectionKey));
+        result.push(...convertBlock(child, childMap, sectionKey, ogMap, imageMap, dbMap));
       }
       return result;
     }
@@ -104,29 +308,43 @@ function convertBlock(
     case "numbered_list_item": {
       const result: BNBlock[] = [numberedLi(richTextToInline(data.rich_text))];
       for (const child of childMap.get(block.id) ?? []) {
-        result.push(...convertBlock(child, childMap, sectionKey));
+        result.push(...convertBlock(child, childMap, sectionKey, ogMap, imageMap, dbMap));
       }
       return result;
     }
 
     case "toggle": {
-      // Toggle title becomes a subheading, children are flattened below it
-      const result: BNBlock[] = [heading(richTextToInline(data.rich_text), sectionKey === "stages" ? 1 : 3)];
-      for (const child of childMap.get(block.id) ?? []) {
-        result.push(...convertBlock(child, childMap, sectionKey));
+      // In stages section toggles act as section headings — flatten to h1 for StagesTabs splitting
+      if (sectionKey === "stages") {
+        const result: BNBlock[] = [heading(richTextToInline(data.rich_text), 1)];
+        for (const child of childMap.get(block.id) ?? []) {
+          result.push(...convertBlock(child, childMap, sectionKey, ogMap, imageMap, dbMap));
+        }
+        return result;
       }
-      return result;
+      // All other sections: proper collapsible toggle, children stored nested
+      const children: BNBlock[] = [];
+      for (const child of childMap.get(block.id) ?? []) {
+        children.push(...convertBlock(child, childMap, sectionKey, ogMap, imageMap, dbMap));
+      }
+      return [{
+        id: uid(),
+        type: "toggle",
+        props: bnProps,
+        content: richTextToInline(data.rich_text),
+        children,
+      }];
     }
 
     case "callout": {
       const content = richTextToInline(data.rich_text);
-      if (!content.some((c) => c.text.trim())) return [];
+      if (!content.some((c) => c.type === "link" || c.text.trim())) return [];
       return [para(content)];
     }
 
     case "quote": {
       const content = richTextToInline(data.rich_text);
-      if (!content.some((c) => c.text.trim())) return [];
+      if (!content.some((c) => c.type === "link" || c.text.trim())) return [];
       return [para(content)];
     }
 
@@ -149,18 +367,65 @@ function convertBlock(
       }];
     }
 
+    case "bookmark": {
+      const url: string = data.url ?? "";
+      if (!url) return [];
+      const og = ogMap?.get(block.id) ?? {};
+      return [{
+        id: uid(),
+        type: "bookmark",
+        props: {
+          url,
+          ogTitle: og.title ?? "",
+          ogDescription: og.description ?? "",
+          ogImage: og.image ?? "",
+        },
+        content: [],
+        children: [],
+      }];
+    }
+
+    case "image": {
+      const url = imageMap?.get(block.id);
+      if (!url) return [];
+      const caption: string = data.caption?.map((r: any) => r.plain_text).join("") ?? "";
+      return [{
+        id: uid(),
+        type: "image",
+        props: { url, caption, width: 512, textAlignment: "left" },
+        content: [],
+        children: [],
+      }];
+    }
+
+    case "child_database": {
+      const rows = dbMap?.get(block.id);
+      if (!rows?.length) return [];
+      const cell = (text: string): BNInline[] => [{ type: "text", text, styles: {} }];
+      return [{
+        id: uid(),
+        type: "table",
+        props: {},
+        content: {
+          type: "tableContent",
+          rows: [
+            { cells: [cell("Этап"), cell("Начало"), cell("Конец")] },
+            ...rows.map((r) => ({ cells: [cell(r.name), cell(r.start), cell(r.end)] })),
+          ],
+        },
+        children: [],
+      }];
+    }
+
     // Skip structural/media blocks
     case "divider":
     case "table_of_contents":
     case "table_row":
-    case "child_database":
     case "child_page":
     case "embed":
-    case "image":
     case "video":
     case "file":
     case "pdf":
-    case "bookmark":
     case "column_list":
     case "column":
       return [];
@@ -346,13 +611,20 @@ export async function importFromNotion(
     }
   }
 
+  // Pre-fetch OG metadata, images and database records in parallel
+  const [ogMap, imageMap, dbMap] = await Promise.all([
+    prefetchOG(sections, childMap),
+    prefetchImages(sections, childMap),
+    prefetchDatabases(sections, token),
+  ]);
+
   // Convert each section to BlockNote JSON string
   const toJson = (key: SectionKey): string | null => {
     const blocks = sections[key];
     if (!blocks.length) return null;
     const bnBlocks: BNBlock[] = [];
     for (const block of blocks) {
-      bnBlocks.push(...convertBlock(block, childMap, key));
+      bnBlocks.push(...convertBlock(block, childMap, key, ogMap, imageMap, dbMap));
     }
     return bnBlocks.length ? JSON.stringify(bnBlocks) : null;
   };
@@ -450,12 +722,18 @@ export async function syncFromNotion(proposalId: string): Promise<void> {
     }
   }
 
+  const [ogMap, imageMap, dbMap] = await Promise.all([
+    prefetchOG(sections, childMap),
+    prefetchImages(sections, childMap),
+    prefetchDatabases(sections, token),
+  ]);
+
   const toJson = (key: SectionKey): string | null => {
     const blocks = sections[key];
     if (!blocks.length) return null;
     const bnBlocks: BNBlock[] = [];
     for (const block of blocks) {
-      bnBlocks.push(...convertBlock(block, childMap, key));
+      bnBlocks.push(...convertBlock(block, childMap, key, ogMap, imageMap, dbMap));
     }
     return bnBlocks.length ? JSON.stringify(bnBlocks) : null;
   };

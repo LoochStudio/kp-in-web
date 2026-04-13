@@ -75,6 +75,33 @@ function Inline({ content }: { content?: InlineContent[] }) {
 
 function BlockNode({ block }: { block: Block }) {
   switch (block.type) {
+    case "toggle": {
+      return (
+        <details className="group my-1">
+          <summary
+            className="flex items-center gap-2 cursor-pointer select-none list-none py-1"
+            style={{ color: "#3A3735" }}
+          >
+            <svg
+              className="shrink-0 transition-transform duration-200 group-open:rotate-90"
+              width="12"
+              height="12"
+              viewBox="0 0 12 12"
+              fill="none"
+            >
+              <path d="M4 2L9 6L4 10" stroke="#9B9490" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <span className="text-base font-medium leading-relaxed">
+              <Inline content={block.content} />
+            </span>
+          </summary>
+          <div className="pl-5 mt-1 space-y-1" style={{ borderLeft: "2px solid #EDE8E2" }}>
+            {groupListItems(block.children ?? [])}
+          </div>
+        </details>
+      );
+    }
+
     case "heading": {
       const level = (block.props?.level as number) ?? 1;
       if (level === 1)
@@ -113,6 +140,46 @@ function BlockNode({ block }: { block: Block }) {
           <Inline content={block.content} />
         </li>
       );
+
+    case "bookmark": {
+      const url = block.props?.url as string | undefined;
+      if (!url) return null;
+      const ogTitle = block.props?.ogTitle as string | undefined;
+      const ogDescription = block.props?.ogDescription as string | undefined;
+      const ogImage = block.props?.ogImage as string | undefined;
+      return (
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-4 my-3 rounded-xl transition-opacity hover:opacity-80"
+          style={{ border: "1px solid #EDE8E2", background: "#fff", padding: "14px 16px", textDecoration: "none" }}
+        >
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium truncate" style={{ color: "#2E2B28" }}>
+              {ogTitle || url}
+            </div>
+            {ogDescription && (
+              <div className="text-xs mt-0.5 line-clamp-2" style={{ color: "#9B9490" }}>
+                {ogDescription}
+              </div>
+            )}
+            <div className="text-xs mt-1.5 truncate" style={{ color: "#C4BCB6" }}>
+              {url}
+            </div>
+          </div>
+          {ogImage && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={ogImage}
+              alt=""
+              className="shrink-0 rounded-lg object-cover"
+              style={{ width: 80, height: 56 }}
+            />
+          )}
+        </a>
+      );
+    }
 
     case "image": {
       const url = block.props?.url as string;
